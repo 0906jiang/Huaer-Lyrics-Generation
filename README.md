@@ -2,8 +2,6 @@
 
 输入 **曲令 / 十三辙 / 意象 / 情感基调 / 句数**，一键生成合规、押韵、对仗的四句花儿唱词。
 
-![demo](https://img.shields.io/badge/demo-Gradio-orange) ![base](https://img.shields.io/badge/base-Qwen2.5--7B--Instruct-blue) ![license](https://img.shields.io/badge/checkpoint-ready-green)
-
 ## 亮点
 
 - **曲令合规**：衬词取自曲令专属衬词表，位置由曲令概率语法采样，不串令、不堆叠
