@@ -1,8 +1,17 @@
 # 河湟花儿唱词可控生成（Body-First）
 
-输入条件（**曲令 / 十三辙 / 意象 / 情感基调 / 句数**），生成符合曲令衬词规范、句尾押韵且句式对仗的四句花儿唱词。
+输入 **曲令 / 十三辙 / 意象 / 情感基调 / 句数**，一键生成合规、押韵、对仗的四句花儿唱词。
 
-本仓库只包含主方法的训练与推理管线。
+![demo](https://img.shields.io/badge/demo-Gradio-orange) ![base](https://img.shields.io/badge/base-Qwen2.5--7B--Instruct-blue) ![license](https://img.shields.io/badge/checkpoint-ready-green)
+
+## 亮点
+
+- **曲令合规**：衬词取自曲令专属衬词表，位置由曲令概率语法采样，不串令、不堆叠
+- **辙口准确**：句尾押韵由解码期硬约束保证，主韵脚直接对齐目标辙
+- **句式对仗**：1&3、2&4 句字数自动配平，每行字数由曲令句式模式给定
+- **意象可控**：指定意象词必现于正文，且不会被衬词切断
+- **开箱即用**：自带 LoRA 权重与 Gradio 网页，克隆后一条命令即可生成
+- **可训练可评测**：完整的 SFT 训练脚本 + 四项约束评测 + 显著性检验工具
 
 ## 方法概要
 
@@ -33,38 +42,55 @@ src/huaer/
 app.py                   Gradio 演示页面
 rules/                   曲令衬词表、概率语法、十三辙表、句式模式
 data/                    数据构建脚本 + 格式示例（example_samples.json）
-checkpoints/             预训练 LoRA adapter（sft_body_v1，约 158 MB）
+checkpoints/             预训练 LoRA adapter（sft_body_v1）
 tools/                   通用指标与显著性检验脚本
 ```
 
-## 环境
+## 快速开始
+
+### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-基座模型需自行下载 Qwen2.5-7B-Instruct，默认路径 `models/Qwen2.5-7B-Instruct`，
-也可用环境变量指定：
+### 2. 准备基座模型
+
+下载 Qwen2.5-7B-Instruct，默认放在 `models/Qwen2.5-7B-Instruct`，也可用环境变量指定：
 
 ```bash
 export QWEN_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
 ```
 
-## 预训练权重
+### 3. 克隆仓库（含权重）
 
-仓库自带主方法的 LoRA adapter（`checkpoints/sft_body_v1/`，约 158 MB），
-对应论文方法在训练集上训练完成的最终权重。
-
-`adapter_model.safetensors` 超过 GitHub 单文件 100 MB 的限制，需用 Git LFS 提交：
+`adapter_model.safetensors` 由 Git LFS 托管，克隆前先安装 Git LFS：
 
 ```bash
 git lfs install
-git lfs track "*.safetensors"
-git add .gitattributes
+git clone https://github.com/0906jiang/Huaer-Lyrics-Generation.git
 ```
 
-若选择把权重放到 HuggingFace Hub，下载后放入同一目录即可，代码无需改动。
+### 4. 网页演示
 
+```bash
+python app.py                                   # 默认 http://127.0.0.1:7860
+python app.py --port 7860 --share               # 生成公网临时链接
+```
+
+也可指定模型与 adapter：
+
+```bash
+python app.py --model_path /path/to/Qwen2.5-7B-Instruct --adapter checkpoints/sft_body_v1
+```
+
+页面输入曲令、十三辙、意象词、情感基调、句数与随机种子，直接输出生成的唱词。
+「生成开关」中可关闭硬约束解码、ISI 或衬词插入，用于对比各模块的效果。
+首次点击生成时才加载模型，7B 模型建议在 GPU 上运行。
+
+## 预训练权重
+
+仓库自带主方法的 LoRA adapter（`checkpoints/sft_body_v1/`），对应论文方法训练完成的最终权重，
 推理时只需加载基座模型 + adapter，无需重新训练：
 
 ```bash
@@ -74,31 +100,46 @@ python src/huaer/infer_body.py \
     --split test --seed 0 --out outputs/body_v1.json
 ```
 
-adapter 内部文件：
-
 | 文件 | 说明 |
 |---|---|
 | `adapter_model.safetensors` | LoRA 权重（r=16, α=32），Git LFS 托管 |
 | `adapter_config.json` | LoRA 配置 |
 
-tokenizer 直接由基座模型加载，无需随 adapter 提供。
+## 训练
 
-## 可复现范围
+数据准备好后，一条命令完成 SFT：
 
-| 内容 | 是否可复现 | 说明 |
-|---|---|---|
-| 推理与网页演示 | 可以 | 基座 + adapter + `rules/` 即可运行 |
-| 约束效果（韵脚、格律、衬词、意象） | 可以 | 生成后用 `evaluate_qfsg.py` 检查，指标定义见下 |
-| 论文中的绝对指标数值 | 不可以 | 测试集不公开，需自备同格式数据 |
-| 从零训练 | 可以（需自备数据） | `build_clean_split.py` → `fix_rhyme_labels.py` → `augment_constrained.py` → `train_sft.py` |
+```bash
+python src/huaer/train_sft.py --mode body \
+    --data data/clean/train_augmented.json \
+    --out experiments/checkpoints/sft_body_v1
+```
 
-生成使用采样解码（temperature 0.7、top_p 0.9），固定随机种子可复现同一环境下的输出，
-但不同 GPU 或不同库版本之间可能存在少量差异。
+`--mode body` 为本文方法（只学纯正文）；`--mode plain` 为无约束基线；`--mode qfsg` 为旧骨架方案。
 
-## 数据说明
+## 推理
 
-**数据集不随本仓库发布。** `data/` 下只有构建脚本、格式示例与两条真实样本，
-运行推理需自行准备数据，训练需按下面的格式准备原始标注。
+```bash
+python src/huaer/infer_body.py \
+    --model_path models/Qwen2.5-7B-Instruct \
+    --adapter checkpoints/sft_body_v1 \
+    --split test --seed 0 --out outputs/body_v1.json
+```
+
+采样参数为 temperature 0.7、top_p 0.9，固定随机种子可复现同一环境下的输出。
+
+可选开关（默认全部开启，做对照实验时建议显式指定，保证变量可控）：
+
+| 参数 | 作用 |
+|---|---|
+| `--no_mask` | 关闭硬约束解码器 |
+| `--no_isi` | 关闭意象槽位注入 |
+| `--no_chenci` | 不插入衬词，输出纯正文 |
+| `--isi_pos prior\|random\|first` | 意象落位策略 |
+
+## 数据格式
+
+`data/` 提供数据构建脚本与格式示例，按下面的格式即可接入自己的花儿语料。
 
 ### 原始 Excel 格式
 
@@ -146,57 +187,7 @@ python data/fix_rhyme_labels.py       # 按句尾韵母众数纠正十三辙标�
 python src/huaer/augment_constrained.py --split train   # 受约束增强，产出 train_augmented.json
 ```
 
-## 训练
-
-```bash
-python src/huaer/train_sft.py --mode body \
-    --data data/clean/train_augmented.json \
-    --out experiments/checkpoints/sft_body_v1
-```
-
-`--mode body` 为本文方法（只学纯正文）；`--mode plain` 为无约束基线；`--mode qfsg` 为旧骨架方案。
-
-## 推理
-
-使用仓库自带的预训练 adapter 直接推理（无需重新训练）：
-
-```bash
-python src/huaer/infer_body.py \
-    --model_path models/Qwen2.5-7B-Instruct \
-    --adapter checkpoints/sft_body_v1 \
-    --split test --seed 0 --out outputs/body_v1.json
-```
-
-可选开关（默认全部开启，做对照实验时必须显式指定，避免变量不可控）：
-
-| 参数 | 作用 |
-|---|---|
-| `--no_mask` | 关闭硬约束解码器 |
-| `--no_isi` | 关闭意象槽位注入 |
-| `--no_chenci` | 不插入衬词，输出纯正文 |
-| `--isi_pos prior\|random\|first` | 意象落位策略 |
-
-## 网页演示
-
-```bash
-pip install -r requirements.txt
-python app.py                                   # 默认 http://127.0.0.1:7860
-python app.py --port 7860 --share               # 生成公网临时链接
-```
-
-也可指定模型与 adapter：
-
-```bash
-python app.py --model_path /path/to/Qwen2.5-7B-Instruct --adapter checkpoints/sft_body_v1
-```
-
-页面输入曲令、十三辙、意象词、情感基调、句数与随机种子，直接输出生成的唱词。
-「生成开关」中可关闭硬约束解码、ISI 或衬词插入，用于对比各模块的效果。
-首次点击生成时才加载模型，7B 模型建议在 GPU 上运行。
-
 ## 评测
-
-评测需要 `data/clean/test.json`（格式见上），用自己的数据替换即可：
 
 ```bash
 python src/huaer/evaluate_qfsg.py --split test \
