@@ -1,0 +1,29 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 模型权重（不入库，自行下载）----
+models/
+experiments/checkpoints/
+
+# ---- 数据集（不随仓库发布）----
+data/raw/
+data/clean/*.json
+
+# ---- 运行产物 ----
+outputs/
+results/
+logs/
+*.log
+
+# ---- 密钥与本地配置 ----
+.env
+.env.local
+*.key
+
+# ---- 系统 ----
+Thumbs.db
+.DS_Store

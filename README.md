@@ -78,9 +78,10 @@ adapter 内部文件：
 
 | 文件 | 说明 |
 |---|---|
-| `adapter_model.safetensors` | LoRA 权重（r=16, α=32） |
+| `adapter_model.safetensors` | LoRA 权重（r=16, α=32），Git LFS 托管 |
 | `adapter_config.json` | LoRA 配置 |
-| `tokenizer.json` 等 | 基座 tokenizer 辅助文件 |
+
+tokenizer 直接由基座模型加载，无需随 adapter 提供。
 
 ## 可复现范围
 
