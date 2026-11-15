@@ -91,10 +91,10 @@ python app.py --model_path /path/to/Qwen2.5-7B-Instruct --adapter checkpoints/sf
 仓库自带主方法的 LoRA adapter（`checkpoints/sft_body_v1/`），对应论文方法训练完成的最终权重，
 推理时只需加载基座模型 + adapter，无需重新训练。
 
-权重由 Git LFS 托管，`git clone` 时自动拉取；也可以直接下载单个文件：
+权重由 Git LFS 托管，`git clone` 时自动拉取；也可以直接从 Release 下载单个文件：
 
 ```
-https://github.com/0906jiang/Huaer-Lyrics-Generation/raw/main/checkpoints/sft_body_v1/adapter_model.safetensors
+https://github.com/0906jiang/Huaer-Lyrics-Generation/releases/download/v1.0/adapter_model.safetensors
 ```
 
 下载后放回 `checkpoints/sft_body_v1/`，文件名保持不变。
